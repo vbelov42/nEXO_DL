@@ -1,80 +1,56 @@
 #!/usr/bin/env python
-# coding: utf-8
-
-# In[7]:
-
-
 import ROOT
-import numpy as np
-
-
-# In[8]:
-
-
 import os
-import torch
-import pandas as pd
-from skimage import io, transform
 import numpy as np
-import matplotlib.pyplot as plt
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms, utils
 import imageio
 
-
-# In[11]:
-
-
 def read3dimage():
-    rootfile = ROOT.TFile('electron.root','read')
-    ttree = rootfile.Get('SSigTree')
+    ttree = ROOT.TChain('SSigTree')
+    ttree.Add('/gpfs/loomis/scratch.omega/hep/david_moore/zl423/tree/Aug18/3mm_10cm/electron_2458_run*root')
+    maxlen = 0 #1540
+    maxq = 0   #91228
+    filenum = 0
     for i in range(ttree.GetEntries()):
-        image_2dcharge = np.zeros((500,500,3),dtype=np.uint8)
+        image_2dcharge = np.zeros((200,255,3),dtype=np.uint8)
         ttree.GetEntry(i)
-        xq = ttree.xq
-        xpad = ttree.fxposition
-        xtile = ttree.fxqtile
-        xrisetime = ttree.fxrisetime
-        for j in range(len(xq)):
-            H=int(xpad[j]+750)/3
-            W=int(xtile[j]+750)/3
-            pixelq = int(xq[j]/10/34)
-            for w_iter in range(10):
-                w_local = W - 5 + w_iter
-                #print H, w_local, pixelq
-                image_2dcharge[H,w_local,0]=pixelq + image_2dcharge[H,w_local,0]
-                if xrisetime[j]>40:
-                    continue
-                else:
-                    image_2dcharge[H,w_local,1]= xrisetime[j] + image_2dcharge[H,w_local,1]
-        yq = ttree.yq
-        ypad = ttree.fyposition
-        ytile = ttree.fyqtile
-        yrisetime = ttree.fyrisetime
-        for j in range(len(yq)):
-            W=int(ypad[j]+750)/3
-            H=int(ytile[j]+750)/3
-            pixelq = int(yq[j]/10/34)
-            for h_iter in range(10):
-                h_local = H - 5 + h_iter
-                #print h_local, W, pixelq
-                image_2dcharge[h_local,W,0]=pixelq + image_2dcharge[h_local,W,0]
-                if yrisetime[j]>40:
-                    continue
-                else:
-                    image_2dcharge[H,w_local,1]= yrisetime[j] + image_2dcharge[H,w_local,1]
-        #imagearray.append(image_2dcharge)
-        
-        imageio.imwrite('./images/electron%d.jpg' % i, image_2dcharge)
+        fxwf = ttree.fxwf
+        fywf = ttree.fywf
+        xposition = ttree.fxposition
+        xpos = []
+        for j in range(len(xposition)):
+            xpos.append(xposition[j])
+        yposition = ttree.fyposition
+        ypos = []
+        for j in range(len(yposition)):
+            ypos.append(yposition[j])
+        xmin = 0
+        xmax = 0
+        if len(xpos)>0:
+            xmin = min(xpos)
+            xmax = max(xpos)
+        ymin = 0
+        ymax = 0
+        if len(ypos)>0:
+            ymin = min(ypos)
+            ymax = max(ypos)
+        if ymax - ymin > 500 or xmax - xmin > 500:
+            continue
+        filenum +=1
+        for m in range(len(xposition)):
+            H = int((xposition[m] - xmin)/3)+10
+            for n in range(len(fxwf[m])/6):
+                if n > 254:
+                    break
+                image_2dcharge[H, n, 0] += (fxwf[m][6*n]/40. + 25)
+        for m in range(len(yposition)):
+            H = int((yposition[m] - ymin)/3)+10
+            for n in range(len(fywf[m])/6):
+                if n > 254:
+                    break
+                image_2dcharge[H, n, 1] += (fywf[m][6*n]/40. + 25)
 
-    
-    
-
-        
-
-
-# In[12]:
-
+        imageio.imwrite('./images/electron%d.jpg' % filenum, image_2dcharge)
+    print maxlen, maxq
 
 read3dimage()
 
