@@ -1,1 +1,1 @@
-# nEXO_DL
+# nEXO_DLThis is the package developed for background and 0vbb event separation in the next-generation Entrich Xenon Observatory (nEXO). The package takes the nEXO charge simulation as input (possibly adding photon information in the future), and utilizes a 18-layer ResNet for classification.
