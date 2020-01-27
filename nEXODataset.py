@@ -101,6 +101,7 @@ def train(trainloader, epoch):
     correct = 0
     total = 0
     for batch_idx, (inputs, targets) in enumerate(trainloader):
+        print(inputs.shape)
         inputs, targets = inputs.to(device), targets.to(device)
         optimizer.zero_grad()
         outputs = net(inputs)
@@ -155,18 +156,34 @@ def test(testloader, epoch, pitch):
         best_acc = acc
     return test_loss/len(testloader), 100.*correct/total, score
 
+def TagEvent(event):
+    global best_acc
+    net.eval()
+    img_as_img = Image.open(event)
+	# data augmentation
+    npimg = np.array(img_as_img)
+    transformed = cropandflip(npimg)
+    # Transform image to tensor
+    img_as_tensor = transforms.functional.to_tensor(transformed)
+    img_as_tensor = torch.unsqueeze(img_as_tensor, 0)
+    softmax = nn.Softmax()
+    with torch.no_grad():
+        img_as_tensor = img_as_tensor.to(device)
+        output = net(img_as_tensor)
+        return softmax(output)[0][1].item()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch nEXO background rejection')
     parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
+    parser.add_argument('--tag', '-t', action='store_true', default=False, help='tag event with trained network')
     parser.add_argument('--pitch', '-p', type=int, default=3, help='pad pitch')
     args = parser.parse_args()
     transformations = transforms.Compose([transforms.ToTensor()])
     # Data
     print('==> Preparing data..')
-    nEXODataset = nEXODatasetFromImages('sens_%dmm.csv'% args.pitch)
-
+    #nEXODataset = nEXODatasetFromImages('sens_%dmm.csv'% args.pitch)
+    nEXODataset = nEXODatasetFromImages('image2dcharge_sens.csv')
     # Creating data indices for training and validation splits:
     dataset_size = len(nEXODataset)
     indices = list(range(dataset_size))
@@ -213,6 +230,13 @@ if __name__ == "__main__":
         net.load_state_dict(checkpoint['net'])
         best_acc = checkpoint['acc']
         start_epoch = checkpoint['epoch']
+    if args.tag:
+        # Use trained network to tag event.
+        print('==> Load the network from checkpoint..')
+        assert os.path.isdir('checkpoint'), 'Error: no checkpoint directory found!'
+        checkpoint = torch.load('./checkpoint_%dmm_cl/ckpt.t7' % args.pitch)
+        net.load_state_dict(checkpoint['net'])
+        TagEvent('sens_imgs/bb0n_453.root_68.jpg')
 
     x = np.linspace(start_epoch,start_epoch + 100,1)
     # numpy arrays for loss and accuracy
