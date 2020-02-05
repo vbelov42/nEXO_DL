@@ -34,7 +34,11 @@ bool DnnEventTagger::initialize()
   std::cout << __PRETTY_FUNCTION__ << std::endl;
   Py_Initialize(); // is it safe?
   np::initialize();
-  return true;
+  py::object module = py::import("DnnEventTagger").attr("DnnHelper");
+  py::object init = module.attr("init_tagger");
+  char filename[256]; snprintf(filename,sizeof(filename),"./checkpoint_%dmm_cl/ckpt.t7",fPitch);
+  auto res = py::call<bool>(py::object(init).ptr(), filename);
+  return bool(res);
 }
 
 bool DnnEventTagger::execute()
@@ -159,15 +163,17 @@ bool DnnEventTagger::execute()
   std::cout << "    done image" << std::endl;
 
   // now send it to python
-  py::object main = py::import("__main__");
+  //py::object main = py::import("__main__");
+  //py::object module = py::import("DnnEventTagger");
+  py::object helper = py::import("DnnEventTagger").attr("DnnHelper");
   if (1) {
-    py::object save = main.attr("save_image");
+    py::object save = helper.attr("save_image");
     //PyObject* func = py::object(main.attr("save_image")).ptr();
     char filename[256]; snprintf(filename, sizeof(filename), "images_%d/run_%04d-event_%04d.png", fPitch, simheader->RunID(), simheader->EventID());
     py::call<void>(py::object(save).ptr(), img, filename);
   }
   if (1) {
-    py::object tag  = main.attr("tag_event");
+    py::object tag  = helper.attr("tag_event");
     auto res = py::call<double>(py::object(tag).ptr(), img);
     std::cout <<"call "<< py::extract<char const *>(py::str(tag)) <<" "<< res << std::endl;
   }
